@@ -1,4 +1,4 @@
-# Simple-Rename-Bot 
+# https://t.me/signiparu_bot
 
 📝 Bot for signipa.ru
 ### Heroku
