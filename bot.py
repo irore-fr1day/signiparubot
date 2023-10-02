@@ -10,7 +10,8 @@ import json
 import datetime
 from telebot import types
 from datetime import datetime
-
+import random
+import string
 
 # Здесь будут храниться данные пользователей
 user_data = {}
@@ -31,8 +32,10 @@ class UserState:
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
-    btn_UDID = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
-    markup.add(btn_UDID)
+    btn_get = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
+    site_button = types.InlineKeyboardButton("Сайт", url=f"https://signipa.ru")
+    telegram_button = types.InlineKeyboardButton("Telegram", url=f"https://t.me/signiparu")
+    markup.add(btn_get,site_button, telegram_button)
 
     if message.from_user.id in ADMIN_USER_IDS:
         register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
@@ -69,18 +72,12 @@ def on_callback_query(callback):
                 markup.add(register_button)
 
             bot.send_message(callback.message.chat.id, response_text, reply_markup=markup)
-            if "Повторить🔄" ==callback.message.text:
-                bot.register_callback_query_handler = 'get_data'
         except Exception as e:
             bot.send_message(callback.message.chat.id, f"Произошла ошибка: {str(e)}")
 
     elif callback.data == 'new_data':
 
-        markup = types.ReplyKeyboardMarkup(resize_keyboard=True)
-        cencelBtn = types.KeyboardButton("Отменить⛔")
-        markup.add(cencelBtn)
-
-        bot.send_message(callback.message.chat.id, "Привет босс введите название приложения для регистрации.📥", reply_markup=markup)
+        bot.send_message(callback.message.chat.id, "Привет босс введите название приложения для регистрации.📥")
         bot.register_next_step_handler(callback.message, get_task_name)
 
 # Обработчик ввода названия приложения
@@ -88,8 +85,8 @@ def on_callback_query(callback):
 def get_task_name(message):
     user_id = message.chat.id
     task_name = message.text
-    token = str(uuid.uuid4())  # Генерируем уникальный токен
-    
+    token = ''.join(random.choices(string.ascii_letters, k=6))
+
     user_data[user_id] = {'task_name': task_name, 'app_token': token}
     
     bot.send_message(user_id, f"Название приложения: {task_name}")
@@ -122,9 +119,17 @@ def get_value_from_url(message):
                     value = input_tags[2].get('value')
                     task_name = user_data[user_id]['task_name']
                     token = user_data[user_id]['app_token']
+
+                    markup = types.InlineKeyboardMarkup(row_width=1)
+                    btn_get = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
+                    url_button = types.InlineKeyboardButton("Установить", url=f"https://signipa.ru/download/{token}")
+                    markup.add(url_button, btn_get)
+
+                    if message.from_user.id in ADMIN_USER_IDS:
+                        register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
+                        markup.add(register_button)
                     
-                    bot.send_message(user_id, f"Название приложения: {task_name}\n\nvalue: {value}\n\nТокен: {(token)}\n\nВремя создания: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
-                    bot.send_message(user_id, f"ССЫЛКА ДЛЯ СКАЧИВАНИЯ: \n\nhttps://signipa.ru/download/{(token)}")
+                    bot.send_message(user_id, f"Название приложения: {task_name}\nВремя создания: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nLink: https://signipa.ru/download/{token}", reply_markup=markup)
                     
                     
                     # Отправляем данные на сервер Django через API
@@ -144,12 +149,12 @@ def get_value_from_url(message):
                         if message.from_user.id in ADMIN_USER_IDS:
                             register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
                             markup.add(register_button)
-                        bot.send_message(message.chat.id, "Данные успешно отправлены в Django.",reply_markup=markup)
+                        bot.send_message(message.chat.id, "Данные успешно отправлены.")
                         if user_id in user_data:
                             del user_data[user_id]
                             return send_welcome
                     else:
-                        bot.send_message(message.chat.id, "Не удалось отправить данные в Django.(Zayebal padajdi)")
+                        bot.send_message(message.chat.id, "Не удалось отправить данные")
                         if user_id in user_data:
                             del user_data[user_id]
                         return
@@ -193,8 +198,7 @@ def get_data_callback(message):
                 markup.add(register_button)
 
             bot.send_message(message.chat.id, response_text, reply_markup=markup)
-            if "Повторить🔄" == message.text:
-                bot.register_callback_query_handler = 'get_data'
+            
     except Exception as e:
         bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
 
@@ -203,3 +207,4 @@ if __name__ == "__main__":
 
 # Запускаем бота
 bot.polling()
+
