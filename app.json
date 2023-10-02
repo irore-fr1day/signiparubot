@@ -1,0 +1,8 @@
+{
+    "name": "signiparu-bot",
+    "description": "Only for signiparu admins and users",                  
+    "keywords": ["telegram", "Signipa-ry", "telebot"],
+    "repository": "https://github.com/irore-fr1day/signiparubot",
+    "addons": [ ],
+    "buildpacks": [{"url": "heroku/python"}]
+  }
