@@ -8,5 +8,5 @@
 ## BotFather Command
 ```
 start - get start the bot
-get_data - replay with file to rename
+get_data - get all data from db
 ```
