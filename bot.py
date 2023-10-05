@@ -34,7 +34,7 @@ def send_welcome(message):
     markup = types.InlineKeyboardMarkup()
     btn_get = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
     site_button = types.InlineKeyboardButton("Сайт", url=f"https://signipa.ru")
-    telegram_button = types.InlineKeyboardButton("Telegram", url=f"https://t.me/signiparu")
+    telegram_button = types.InlineKeyboardButton("Telegram", url=f"https://t.me/mazikios")
     markup.add(btn_get,site_button, telegram_button)
 
     if message.from_user.id in ADMIN_USER_IDS:
@@ -47,6 +47,7 @@ def send_welcome(message):
 def on_callback_query(callback):
     if callback.data == 'get_data':
         try:
+            
 
             response = requests.get(f"{django_api_url}")
             app_data = response.json()  # Assuming the response is a JSON array of dictionaries
