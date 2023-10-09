@@ -23,7 +23,7 @@ bot = telebot.TeleBot('6383118899:AAEO0xs0M8NU4vOaXeimR152ilwY1j59Ov8')
 django_api_url = 'https://signipa.ru/app-names'
 
 # ID пользователей, которым разрешен доступ
-ADMIN_USER_IDS = [1850974084, 5145425036]
+ADMIN_USER_IDS = [1850974084, 5145425036, 6125713641]
 
 class UserState:
     WAITING_FOR_NAME = 0
