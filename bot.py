@@ -28,6 +28,7 @@ ADMIN_USER_IDS = [1850974084, 5145425036, 6125713641]
 class UserState:
     WAITING_FOR_NAME = 0
     WAITING_FOR_URL = 1
+    WAITING_FOR_REDIRECT = 2
 
 @bot.message_handler(commands=['start', 'help'])
 def send_welcome(message):
@@ -47,8 +48,6 @@ def send_welcome(message):
 def on_callback_query(callback):
     if callback.data == 'get_data':
         try:
-            
-
             response = requests.get(f"{django_api_url}")
             app_data = response.json()  # Assuming the response is a JSON array of dictionaries
             
@@ -88,11 +87,25 @@ def get_task_name(message):
     task_name = message.text
     token = ''.join(random.choices(string.ascii_letters, k=6))
 
-    user_data[user_id] = {'task_name': task_name, 'app_token': token}
-    
-    bot.send_message(user_id, f"Название приложения: {task_name}")
-    bot.send_message(user_id, f"Токен: {generate_download_link(token)}\n\nСейчас введите ссылку для извлечения значения.")
-    user_data[user_id]['state'] = UserState.WAITING_FOR_URL
+    if user_id not in user_data:
+        user_data[user_id] = {'state': UserState.WAITING_FOR_REDIRECT, 'task_name': task_name, 'app_token': token}
+        bot.send_message(user_id, f"Название приложения: {task_name}")
+        bot.send_message(user_id, f"Токен: {generate_download_link(token)}\n\nСейчас введите ссылку для перенаправления (без https://t.me/).")
+    else:
+        bot.send_message(user_id, "Произошла ошибка: неверное состояние пользователя.")
+
+@bot.message_handler(func=lambda message: user_data.get(message.chat.id, {}).get('state') == UserState.WAITING_FOR_REDIRECT)
+def get_task_redirect(message):
+    user_id = message.chat.id
+    redirect = f'https://t.me/{message.text}'
+
+    if user_id in user_data:
+        user_data[user_id]['app_redirect'] = redirect
+
+        bot.send_message(user_id, f"Redirect: {redirect}\n\nСейчас введите ссылку для извлечения значения.")
+        user_data[user_id]['state'] = UserState.WAITING_FOR_URL
+    else:
+        bot.send_message(user_id, "Произошла ошибка: неверное состояние пользователя.")
 
 # Функция для создания ссылки с токеном
 def generate_download_link(token):
@@ -102,16 +115,16 @@ def generate_download_link(token):
 @bot.message_handler(func=lambda message: user_data.get(message.chat.id, {}).get('state') == UserState.WAITING_FOR_URL)
 def get_value_from_url(message):
     user_id = message.chat.id
-    
+
     if user_id not in user_data:
         bot.send_message(user_id, "Для начала работы, пожалуйста, введите название приложения.")
         return
-    
+
     url = message.text
-    
+
     try:
         response = requests.get(url)
-        
+
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
             input_tags = soup.find_all('input')
@@ -120,6 +133,7 @@ def get_value_from_url(message):
                     value = input_tags[2].get('value')
                     task_name = user_data[user_id]['task_name']
                     token = user_data[user_id]['app_token']
+                    redirect = user_data[user_id]['app_redirect']
 
                     markup = types.InlineKeyboardMarkup(row_width=1)
                     btn_get = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
@@ -129,15 +143,15 @@ def get_value_from_url(message):
                     if message.from_user.id in ADMIN_USER_IDS:
                         register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
                         markup.add(register_button)
-                    
+
                     bot.send_message(user_id, f"Название приложения: {task_name}\nВремя создания: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nLink: https://signipa.ru/download/{token}", reply_markup=markup)
-                    
-                    
+
                     # Отправляем данные на сервер Django через API
                     data = {
                         'app_name': task_name,
                         'app_value': value,
                         'app_token': token,
+                        'app_redirect': redirect,
                         'app_data' : datetime.now().strftime('%m-%d %H:%M')
                     }
 
@@ -163,49 +177,45 @@ def get_value_from_url(message):
                     bot.send_message(user_id, "На странице нет третьего тега <input>.")
             except Exception as e:
                 bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
-                
+
         else:
             bot.send_message(user_id, "Не удалось получить HTML-код страницы.")
-    
+
     except Exception as e:
         bot.send_message(user_id, f"Произошла ошибка: {str(e)}")
 
 @bot.message_handler(commands=['get_data'])
 def get_data_callback(message):
     user_id = message.from_user.id
-    
+
     try:
 
-            response = requests.get(f"{django_api_url}")
-            app_data = response.json()  # Assuming the response is a JSON array of dictionaries
-            
-            if not app_data:
-                bot.send_message(message.chat.id, "На данный момент нет данных о приложениях.")
-                return
-            
-            response_text = "Список приложений:\n"
-            for idx, app_info in enumerate(app_data, start=1):
-                app_name = app_info.get('app_name', 'Неизвестное приложение')
-                app_token = app_info.get('app_token', '')
-                app_link = f"Ссылка: https://signipa.ru/download/{app_token}"
-                
-                response_text += f"{idx} - ({app_name})\n\n{app_link}\n\n"
-            markup = types.InlineKeyboardMarkup()
-            btn_UDID = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
-            markup.add(btn_UDID)
+        response = requests.get(f"{django_api_url}")
+        app_data = response.json()  # Assuming the response is a JSON array of dictionaries
 
-            if message.from_user.id in ADMIN_USER_IDS:
-                register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
-                markup.add(register_button)
+        if not app_data:
+            bot.send_message(message.chat.id, "На данный момент нет данных о приложениях.")
+            return
 
-            bot.send_message(message.chat.id, response_text, reply_markup=markup)
-            
+        response_text = "Список приложений:\n"
+        for idx, app_info in enumerate(app_data, start=1):
+            app_name = app_info.get('app_name', 'Неизвестное приложение')
+            app_token = app_info.get('app_token', '')
+            app_link = f"Ссылка: https://signipa.ru/download/{app_token}"
+
+            response_text += f"{idx} - ({app_name})\n\n{app_link}\n\n"
+        markup = types.InlineKeyboardMarkup()
+        btn_UDID = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
+        markup.add(btn_UDID)
+
+        if message.from_user.id in ADMIN_USER_IDS:
+            register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
+            markup.add(register_button)
+
+        bot.send_message(message.chat.id, response_text, reply_markup=markup)
+
     except Exception as e:
         bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
 
 if __name__ == "__main__":
     bot.polling()
-
-# Запускаем бота
-bot.polling()
-
