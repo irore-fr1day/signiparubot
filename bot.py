@@ -143,84 +143,6 @@ def get_value_from_url(message):
         
         if response.status_code == 200:
             soup = BeautifulSoup(response.text, 'html.parser')
-            body_tag = soup.find('body')
-            
-            if body_tag:
-                option_tags = body_tag.find_all('option')
-                
-                if option_tags:
-                    # Используем первый тег <option>
-                    first_option_tag = option_tags[0]
-                    value = first_option_tag.get('value')
-                    
-                    task_name = user_data[user_id]['task_name']
-                    app_telegram = user_data[user_id]['app_telegram']
-                    token = user_data[user_id]['app_token']
-
-                    markup = types.InlineKeyboardMarkup(row_width=1)
-                    btn_get = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
-                    url_button = types.InlineKeyboardButton("Установить", url=f"https://signipa.ru/download/{token}")
-                    markup.add(url_button, btn_get)
-
-                    if message.from_user.id in ADMIN_USER_IDS:
-                        register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
-                        markup.add(register_button)
-                    
-                    bot.send_message(user_id, f"Название приложения: {task_name}\nВремя создания: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\nLink: https://signipa.ru/download/{token}\nRedirect-{app_telegram}", reply_markup=markup)
-                    
-                    
-                    # Отправляем данные на сервер Django через API
-                    data = {
-                        'app_name': task_name,
-                        'app_value': value,
-                        'app_token': token,
-                        'app_data' : datetime.now().strftime('%m-%d %H:%M'),
-                        "app_redirect": app_telegram
-                    }
-
-                    response = requests.post(url=django_api_url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
-                    if response.status_code == 201:
-                        markup = types.InlineKeyboardMarkup()
-                        btn_UDID = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
-                        markup.add(btn_UDID)
-
-                        if message.from_user.id in ADMIN_USER_IDS:
-                            register_button = types.InlineKeyboardButton("Новая ссылка", callback_data='new_data')
-                            markup.add(register_button)
-                        bot.send_message(message.chat.id, "Данные успешно отправлены.")
-                        if user_id in user_data:
-                            del user_data[user_id]
-                            return send_welcome
-                    else:
-                        bot.send_message(message.chat.id, "Не удалось отправить данные")
-                        if user_id in user_data:
-                            del user_data[user_id]
-                        return
-                else:
-                    bot.send_message(user_id, "На странице нет тега <option> внутри тега <body>.")
-            else:
-                bot.send_message(user_id, "На странице нет тега <body>.")
-        else:
-            bot.send_message(user_id, "Не удалось получить HTML-код страницы.")
-    
-    except Exception as e:
-        bot.send_message(user_id, f"Произошла ошибка: {str(e)}")
-
-'''@bot.message_handler(func=lambda message: user_data.get(message.chat.id, {}).get('state') == UserState.WAITING_FOR_URL)
-def get_value_from_url(message):
-    user_id = message.chat.id
-    
-    if user_id not in user_data:
-        bot.send_message(user_id, "Для начала работы, пожалуйста, введите название приложения.")
-        return
-    
-    url = message.text
-    
-    try:
-        response = requests.get(url)
-        
-        if response.status_code == 200:
-            soup = BeautifulSoup(response.text, 'html.parser')
             input_tags = soup.find_all('input')
             try:
                 if len(input_tags) >= 3:
@@ -274,10 +196,10 @@ def get_value_from_url(message):
                 bot.send_message(message.chat.id, f"Произошла ошибка: {str(e)}")
                 
         else:
-            bot.send_message(user_id, "Не удалось получить HTML-код страницы.")
+            bot.send_message(user_id, f"Не удалось получить HTML-код страницы.\nСтатус входа - {response.status_code}")
     
     except Exception as e:
-        bot.send_message(user_id, f"Произошла ошибка: {str(e)}")'''
+        bot.send_message(user_id, f"Произошла ошибка: {str(e)}")
 
 @bot.message_handler(commands=['get_data'])
 def get_data_callback(message):
