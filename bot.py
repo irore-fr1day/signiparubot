@@ -48,7 +48,7 @@ def send_welcome(message):
 def on_callback_query(callback):
     if callback.data == 'get_data':
         try:
-            response = requests.get(f"{django_api_url}")
+            response = requests.get(f"{django_api_url}", verify=False)
             app_data = response.json()  # Assuming the response is a JSON array of dictionaries
             
             if not app_data:
@@ -172,7 +172,7 @@ def get_value_from_url(message):
                         "app_redirect": app_telegram
                     }
 
-                    response = requests.post(url=django_api_url, data=json.dumps(data), headers={'Content-Type': 'application/json'})
+                    response = requests.post(url=django_api_url, data=json.dumps(data), headers={'Content-Type': 'application/json'}, verify=False)
                     if response.status_code == 201:
                         markup = types.InlineKeyboardMarkup()
                         btn_UDID = types.InlineKeyboardButton("Получить ссылки", callback_data='get_data')
