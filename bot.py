@@ -207,7 +207,7 @@ def get_data_callback(message):
     
     try:
 
-            response = requests.get(f"{django_api_url}")
+            response = requests.get(f"{django_api_url}" , verify=False)
             app_data = response.json()  # Assuming the response is a JSON array of dictionaries
             
             if not app_data:
